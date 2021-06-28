@@ -95,7 +95,7 @@ class StandardDeviation:
         daily_avg = np.log(data / data.shift(1))
         std = daily_avg[list_of_stocks].std() * pow(250, 0.5)
         # mean = daily_avg[list_of_stocks].mean() * 250
-        return str(round(std, 4) * 100)
+        return str(round(std, 2) * 100)
 
     @staticmethod
     def correlation(list_of_stocks, start_date):
@@ -195,4 +195,4 @@ class CashFlow:
         discount = actual_stock_price / fair_price
 
         return [round(fair_price, 2), capm_str, wacc_str, round(actual_stock_price, 2),
-                str(round((1-discount) * 100, 2)) + '%']
+                str(round((1-discount) * 100 if fair_price > 0 else ((1-discount) * 100)*-1, 2)) + '%']

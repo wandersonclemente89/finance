@@ -4,6 +4,9 @@ from datetime import date, datetime
 from pandas_datareader import data as wb
 import matplotlib.pyplot as plt
 import pandas as pd
+import yfinance as yf
+
+from finance.utils import Utils
 
 
 class ReturnOfInvestment:
@@ -37,14 +40,17 @@ class ReturnOfInvestment:
         return str(round(avg_annual, 5) * 100) + '%'
 
     @staticmethod
-    def equity_return(stock, erp, ipca):
+    def equity_return(stock, erp, riskFreeTax):
         beta = Beta.stock_beta(stock)
-        ri = ipca + (float(beta)) * (erp - ipca)
+        ri = riskFreeTax + (float(beta)) * (erp - riskFreeTax)
         return str(round((ri * 100), 2)) + '%'
 
     @staticmethod
     def equity_int_return(stock, erp, riskFreeTax):
-        beta = Beta.stock_beta(stock)
+        betaTst = yf.Ticker(stock).info['beta']
+        print('BETA TST: ' + str(betaTst))
+        beta = betaTst if betaTst else Beta.stock_beta(stock)
+        print('BETA: ' + str(beta))
         ri = riskFreeTax + (float(beta)) * (erp - riskFreeTax)
         return ri
 
@@ -148,26 +154,36 @@ class Beta:
 class CashFlow:
 
     @staticmethod
-    def fdc(stock, erp, risk_free_tax, free_cash_flow, payout, roe, cost_of_third_parties_capital,
+    def fdc(stock, erp, risk_free_tax, roe, cost_of_third_parties_capital,
             percentage_of_third_parties_capital, g, number_of_years, numberOfStocks, indebtedness):
+        ticker = yf.Ticker(stock)
 
         print('======== capm =============')
         capm = ReturnOfInvestment.equity_int_return(stock, erp, risk_free_tax)
 
-        capm_str = str(round(capm*100, 2))+'%'
+        capm_str = str(round(capm * 100, 2)) + '%'
         print(capm_str)
 
         print('======== wacc =============')
         wacc = ((1 - percentage_of_third_parties_capital) * capm) + (percentage_of_third_parties_capital
                                                                      * (cost_of_third_parties_capital * 0.65))
-        wacc_str = str(round(wacc*100, 2))+'%'
+        wacc_str = str(round(wacc * 100, 2)) + '%'
         print(wacc_str)
 
         print('======== cash_flows =============')
-        cash_flows = [free_cash_flow]
+        free_cash_flow = Utils.free_cash_flow(stock)
+        print('Free Cash Flow: ' + str(free_cash_flow[0]))
+        cash_flows = [free_cash_flow[0]]
+        payout = ticker.info['payoutRatio']
         tax = (1 - payout) * roe
+        print('PAYOUT: ' + str(payout))
+        print('(1-Payout)*roe: ' + str(tax))
+
+        totalTax = (tax + free_cash_flow[1]) / 2
+        print('Free Cash Flow avg growth: ' + str(free_cash_flow[1]))
+        print('Growth Avg: ' + str(totalTax))
         for year in range(1, number_of_years):
-            cash_flows.append(cash_flows[year-1]*(1 + tax))
+            cash_flows.append(cash_flows[year - 1] * (1 + tax))
         print(cash_flows)
 
         print('======== Perpetual growth rate =============')
@@ -176,6 +192,7 @@ class CashFlow:
 
         fair_price = (((npf.npv(wacc, cash_flows) + perpetual_growth_amount) - indebtedness) / numberOfStocks)
         actual_stock_price = wb.get_data_yahoo(stock)['Adj Close'].tail(1).iloc[0]
-        discount = 1 - actual_stock_price/fair_price
+        discount = actual_stock_price / fair_price
 
-        return [round(fair_price, 2), capm_str, wacc_str, round(actual_stock_price, 2), str(round(discount*100, 2))+'%']
+        return [round(fair_price, 2), capm_str, wacc_str, round(actual_stock_price, 2),
+                str(round((1-discount) * 100, 2)) + '%']

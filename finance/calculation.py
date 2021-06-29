@@ -51,7 +51,7 @@ class ReturnOfInvestment:
         print('BETA TST: ' + str(betaTst))
         beta = betaTst if betaTst else Beta.stock_beta(stock)
         print('BETA: ' + str(beta))
-        ri = riskFreeTax + (float(beta)) * (erp - riskFreeTax)
+        ri = riskFreeTax + (abs(float(beta))) * (erp - riskFreeTax)
         return ri
 
     @staticmethod
